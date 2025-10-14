@@ -1,0 +1,11 @@
+#Sanal Ortamlar
+venv/
+pycache/
+
+#Görüntü İşleme ve Test Çıktıları
+*.pyc
+*.pyd
+gecici/
+*.jpg
+*.jpeg
+*.png
