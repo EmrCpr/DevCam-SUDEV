@@ -1,7 +1,7 @@
 #Sanal Ortamlar
 venv/
 pycache/
-
+.venv/
 #Görüntü İşleme ve Test Çıktıları
 *.pyc
 *.pyd
