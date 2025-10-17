@@ -12,7 +12,7 @@ import qrcode
 # --- 1. SABİT DEĞİŞKENLER VE AYARLAR ---
 
 # A. API Ayarı (Lütfen bu adresi kendi sunucunuzla değiştirin!)
-API_ENDPOINT = "http://seninwebsiten.com/api/fotograf_yukle" 
+API_ENDPOINT = "http://localhost:8080/upload" 
 API_KEY = "SUDEV_TOPLULUK_2025" 
 
 # B. Sloganları Yükleme
@@ -102,7 +102,7 @@ def upload_photo_to_api(image, api_endpoint, api_key):
         response = requests.post(api_endpoint, files=files, data=data, timeout=10)
         response.raise_for_status() 
         result = response.json()
-        if response.status_code == 200 and result.get('status') == 'success' and result.get('download_url'):
+        if response.status_code == 200 and result.get('success') and result.get('download_url'):
             return result['download_url']
     except requests.exceptions.RequestException as e:
         print(f"API Bağlantı/İstek Hatası: {e}")

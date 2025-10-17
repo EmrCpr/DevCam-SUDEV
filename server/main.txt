@@ -1,0 +1,1 @@
+curl -X POST -F "photo=@C:\Users\Görkem\Desktop\Sudev\DEVCAM-Sudev\DevCam-SUDEV\server\new.png" -F "api_key=SUDEV_TOPLULUK_2025" http://localhost:8080/upload
