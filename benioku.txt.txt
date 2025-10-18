@@ -1,0 +1,50 @@
+DevCam Projesi - Kurulum Talimatları
+
+Bu proje, Python ve MediaPipe kütüphanelerini kullanmaktadır. Projeyi çalıştırmadan önce lütfen aşağıdaki adımları sırasıyla uygulayın.
+
+1. Sanal Ortamı Hazırlama (venv)
+
+Projeyi izole bir ortamda çalıştırmak en iyisidir.
+
+1.1 Ortamı Oluşturma (Sadece İlk Kurulumda)
+
+Proje klasörünüzdeyken (DevCam-SUDEV), sanal ortamı oluşturun:
+
+python -m venv venv
+
+
+1.2 PowerShell Güvenlik Ayarı (KRİTİK)
+
+Windows PowerShell, sanal ortamı etkinleştiren betikleri çalıştırmayı genellikle engeller. Bu sorunu sadece bu oturum için çözmek üzere aşağıdaki komutu çalıştırın:
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+
+(Bu komut, onay sorusu sormadan güvenlik kısıtlamasını geçici olarak kaldırır.)
+
+1.3 Sanal Ortamı Etkinleştirme
+
+Artık sanal ortamınızı etkinleştirebilirsiniz. Terminalinizin başında (venv) yazısını gördüğünüzden emin olun.
+
+.\venv\Scripts\activate
+
+
+2. Gerekli Kütüphaneleri Kurma
+
+Sanal ortamınız etkinleştirildikten sonra, requirements.txt dosyasını kullanarak tüm bağımlılıkları tek seferde kurun:
+
+pip install -r requirements.txt
+
+
+3. DevCam'i Çalıştırma
+
+Kurulum tamamlandıktan sonra, projeyi çalıştırmak için Python yorumlayıcısını kullanın.
+
+python test.py
+
+
+4. Uygulamayı Kapatma
+
+Uygulama çalışırken klavye yerine jest (el hareketi) kullanır:
+
+Çıkış: Kameraya her iki elinizi de yumruk yaparak gösterin. Uygulama otomatik olarak kapanacaktır.

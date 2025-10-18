@@ -248,7 +248,7 @@ with mp_face_detection.FaceDetection(
         key = cv2.waitKey(5) & 0xFF
         if foto_cekildi: # El hareketi ile tetiklendi
 
-            cerceve_img = load_and_resize_overlay("cerceve.png", w, h)
+            cerceve_img = load_and_resize_overlay("scerceve.png", w, h)
             
             if cerceve_img is not None:
                 # islenmis_foto sadece burada kullanılıyor, canlı akıştaki 'POZ VERİN' metni buraya gelmez
