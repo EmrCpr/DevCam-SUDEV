@@ -14,7 +14,7 @@ import math # Ses için eklendi
 # --- 1. SABİT DEĞİŞKENLER VE AYARLAR ---
 
 # A. API Ayarı (Lütfen bu adresi kendi sunucunuzla değiştirin!)
-API_ENDPOINT = "http://seninwebsiten.com/api/fotograf_yukle" 
+API_ENDPOINT = "http://api.mgkdev.com:8080/upload" 
 API_KEY = "SUDEV_TOPLULUK_2025" 
 
 # B. Kamera ve Çözünürlük Ayarı
@@ -128,7 +128,7 @@ def upload_photo_to_api(image, api_endpoint, api_key):
         response = requests.post(api_endpoint, files=files, data=data, timeout=10)
         response.raise_for_status() 
         result = response.json()
-        if response.status_code == 200 and result.get('status') == 'success' and result.get('download_url'):
+        if response.status_code == 200 and result.get('success') and result.get('download_url'):
             return result['download_url']
     except requests.exceptions.RequestException as e:
         print(f"API Bağlantı/İstek Hatası: {e}")
@@ -197,7 +197,7 @@ with mp_face_detection.FaceDetection(
                 # Yüksek tiz sesi (çekim bitti)
                 play_countdown_sound(900, 0.4) 
                 
-                cerceve_img = load_and_resize_overlay("cerceve.png", w, h)
+                cerceve_img = load_and_resize_overlay("tcerceve.png", w, h)
                 
                 if cerceve_img is not None:
                     islenmis_foto = overlay_transparent(image.copy(), cerceve_img, 0, 0)
