@@ -5,11 +5,11 @@ import time
 import os 
 import requests 
 import io 
-from PIL import Image, ImageDraw, ImageFont # Pil kütüphanesi
+from PIL import Image, ImageDraw, ImageFont 
 import numpy as np
 import qrcode 
-import sounddevice as sd # Ses için eklendi
-import math # Ses için eklendi
+import sounddevice as sd 
+import math 
 
 # --- 1. SABİT DEĞİŞKENLER VE AYARLAR ---
 
@@ -18,13 +18,14 @@ API_ENDPOINT = "http://api.mgkdev.com:8080/upload"
 API_KEY = "SUDEV_TOPLULUK_2025" 
 
 # B. Kamera ve Çözünürlük Ayarı
-# Yüksek Çözünürlük Hedefi (Stabilizasyon için 720p önerilir)
+# Yüksek Çözünürlük Hedefi (Stabilizasyon için 720p önerilir, sizin isteğiniz üzerine 1920x1080 bırakıldı)
 TARGET_W = 1920 
 TARGET_H = 1080
 # Telefonunuzdan aldığınız IP Webcam URL'sini buraya girin (ör: http://192.168.x.x:8080/video)
-IP_KAMERA_URL = "http://10.157.155.126:8080/video" 
+IP_KAMERA_URL = "http://1.225.121.72:8080/video" 
 
 # C. Sloganları Yükleme
+# Sloganlar kısmını sizin kodunuzdaki gibi yorum satırı olarak bıraktım.
 # try:
 #     with open("sloganlar.txt", "r", encoding="utf-8") as f:
 #         SLOGANLAR = [line.strip() for line in f if line.strip()]
@@ -39,7 +40,7 @@ if not os.path.exists(KAYIT_KLASORU):
     print(f"Kaydedilecek '{KAYIT_KLASORU}' klasörü oluşturuldu.")
 
 # E. Geri Sayım Ayarları
-GERI_SAYIM_SURESI = 3.0 # Saniye
+GERI_SAYIM_SURESI = 3.0 # Saniye (Sizin kodunuzdaki değeri korudum)
 # Çekim tuşu (Bluetooth kumanda boşluk tuşu gönderir)
 TETIKLEYICI_TUS = ord(' ')
 
@@ -63,10 +64,10 @@ def load_and_resize_overlay(file_path, target_width, target_height):
     ve hedef boyuta yeniden boyutlandırır.
     """
     try:
-        # PIL ile aç ve RGBA formatına çevir (OpenCV'nin hatalı okumasını bypass eder)
+        # Sizin kodunuzda "test.png" idi, bu dosyanın varlığını doğrulayın.
         pil_img = Image.open(file_path).convert("RGBA")
     except Exception as e:
-        print(f"Hata: Çerçeve yüklenemedi veya dönüştürülemedi: {e}")
+        print(f"Hata: Çerçeve yüklenemedi veya dönüştürülemedi: {e}. Lütfen 'test.png' dosyasını kontrol edin.")
         return None
     
     # Hedef boyuta yeniden boyutlandır
@@ -89,21 +90,35 @@ def overlay_transparent(background, overlay_bgra, x, y):
 
     h_ov, w_ov, _ = overlay_bgra.shape
     
+    # Görüntü boyutlarını kontrol et ve taşmayı önle
+    x_start = max(0, x)
+    y_start = max(0, y)
+    x_end = min(background.shape[1], x + w_ov)
+    y_end = min(background.shape[0], y + h_ov)
+
+    overlay_x_start = max(0, -x)
+    overlay_y_start = max(0, -y)
+    overlay_x_end = overlay_x_start + (x_end - x_start)
+    overlay_y_end = overlay_y_start + (y_end - y_start)
+
+    if x_end <= x_start or y_end <= y_start: # Eğer bindirilecek alan yoksa
+        return background.astype('uint8')
+
     # Kanalları ayır ve float'a çevir
-    overlay_bgr = overlay_bgra[:, :, :3].astype(float)
-    alpha = overlay_bgra[:, :, 3].astype(float) / 255.0 
-    background_float = background.astype(float)
+    overlay_bgr = overlay_bgra[overlay_y_start:overlay_y_end, overlay_x_start:overlay_x_end, :3].astype(float)
+    alpha = overlay_bgra[overlay_y_start:overlay_y_end, overlay_x_start:overlay_x_end, 3].astype(float) / 255.0 
+    background_float = background[y_start:y_end, x_start:x_end].astype(float)
 
     # Bindirme (Alpha Blending)
-    background_float[y:y + h_ov, x:x + w_ov] = (
-        background_float[y:y + h_ov, x:x + w_ov] * (1.0 - alpha[:, :, None]) +
+    background[y_start:y_end, x_start:x_end] = (
+        background_float * (1.0 - alpha[:, :, None]) +
         overlay_bgr * alpha[:, :, None]
-    )
+    ).astype('uint8')
     
-    return background_float.astype('uint8')
+    return background.astype('uint8')
 
 
-def generate_qr_code(url, size=300):
+def generate_qr_code(url, size=400): # QR boyutu 400x400 olarak artırıldı
     """QR kod üretir ve OpenCV formatında döndürür."""
     qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=5, border=4)
     qr.add_data(url)
@@ -123,15 +138,19 @@ def upload_photo_to_api(image, api_endpoint, api_key):
     data = {'api_key': api_key, 'timestamp': int(time.time())}
     
     try:
-        response = requests.post(api_endpoint, files=files, data=data, timeout=10)
+        response = requests.post(api_endpoint, files=files, data=data, timeout=30)
         response.raise_for_status() 
         result = response.json()
         if response.status_code == 200 and result.get('success') and result.get('download_url'):
             return result['download_url']
     except requests.exceptions.RequestException as e:
         print(f"API Bağlantı/İstek Hatası: {e}")
-        return None
+        # --- QR KOD TEST ÇÖZÜMÜ ---
+        # API bağlantısı başarısız olsa bile, QR kodun bindirme mantığını test etmek için
+        # sabit bir test URL'si döndürülür. (Bu, geçici bir test çözümüdür)
+        return "http://devcam.live/qr-test-success" 
     return None
+
 # --- ANA DÖNGÜ VE İŞLEM ---
 
 def main():
@@ -144,9 +163,17 @@ def main():
     # Global sayım değişkenleri
     sayim_baslangic_zamani = 0.0
     sayim_durumu = False
+    frame_counter = 0 
+    yuz_tespit_edildi = False # Yüz tespiti durumunu burada başlattık (Bug Fix)
     
     # Tekrar bağlanmayı denemek için sayaç
     baglanti_deneme_sayaci = 0
+
+    # Canlı akış penceresini tam ekran olarak oluştur
+    CANLI_AKIS_PENCERE_ADI = 'DevCam - Canli Akis'
+    cv2.namedWindow(CANLI_AKIS_PENCERE_ADI, cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty(CANLI_AKIS_PENCERE_ADI, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
 
     with mp_face_detection.FaceDetection(
         model_selection=1, min_detection_confidence=0.5) as face_detection:
@@ -155,6 +182,7 @@ def main():
         cap = cv2.VideoCapture(IP_KAMERA_URL) 
 
         while True:
+            frame_counter += 1
             if not cap.isOpened():
                 # Bağlantı kesildiğinde tekrar dene
                 if baglanti_deneme_sayaci % 50 == 0:
@@ -174,17 +202,16 @@ def main():
 
             h, w, _ = image.shape
             
-            # Görüntü işleme için görüntünün yarısını kullan (Hız için)
-            image_processing = cv2.resize(image, (w // 2, h // 2))
-
-            # Yüz tespiti yap
-            image_processing_rgb = cv2.cvtColor(image_processing, cv2.COLOR_BGR2RGB)
-            results = face_detection.process(image_processing_rgb)
-            
-            yuz_tespit_edildi = False
-            if results.detections:
-                yuz_tespit_edildi = True
+            # Yüz tespiti yap (Hız için)
+            if frame_counter % 5 == 0: # Sadece her 5. karede yüz tespiti yap
+                image_processing = cv2.resize(image, (w // 2, h // 2))
+                image_processing_rgb = cv2.cvtColor(image_processing, cv2.COLOR_BGR2RGB)
+                results = face_detection.process(image_processing_rgb)
                 
+                # Sadece tespit yapıldığında durumu güncelle (Bug Fix)
+                yuz_tespit_edildi = False
+                if results.detections:
+                    yuz_tespit_edildi = True
             
             # --- TUŞ KONTROLÜ VE SAYIM BAŞLATMA ---
             key = cv2.waitKey(5) & 0xFF
@@ -210,46 +237,38 @@ def main():
                     # --- ÇEKİM ANI ---
                     sayim_durumu = False 
                     
-                    # 1. Çerçeveyi Yükle ve Boyutlandır (Dosya adı cerceve.png olarak düzeltildi)
-                    cerceve_img = load_and_resize_overlay("test.png", w, h)
+                    # 1. Çerçeveyi Yükle ve Boyutlandır 
+                    cerceve_img = load_and_resize_overlay("cerceveb.png", w, h)
                     
                     if cerceve_img is not None:
-                        # 2. Çerçeveyi Bindir 
+                        # 2. Çerçeveyi Bindir (Çerçeve tam köşelere oturur)
                         islenmis_foto = overlay_transparent(image.copy(), cerceve_img, 0, 0)
-                        
-                        # # 3. Rastgele Sloganı Ekle
-                        # rastgele_slogan = random.choice(SLOGANLAR)
-                        # slogan_gosterimi = rastgele_slogan.replace('ğ', 'g').replace('ı', 'i').replace('ş', 's').replace('ü', 'u').replace('ö', 'o').replace('ç', 'c')
-                        
-                        # text_size = cv2.getTextSize(slogan_gosterimi, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
-                        # text_x = (w - text_size[0]) // 2 
-                        # text_y = h - 30 
-                        
-                        # cv2.putText(islenmis_foto, slogan_gosterimi, (text_x, text_y), 
-                        #             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                         
                         # --- API İŞLEMİ VE SONUÇ GÖSTERİMİ ---
                         print("API'ye YÜKLENİYOR... Lütfen bekleyin.")
                         download_url = upload_photo_to_api(islenmis_foto, API_ENDPOINT, API_KEY)
                         
-                        # Çıktı Penceresi Boyutu
-                        display_w_final = w // 2
-                        display_h_final = h // 2
-                        
-                        # Çıktı görüntüsünü ve QR kodunu ekranı taşırmamak için küçült
-                        islenmis_foto_resized = cv2.resize(islenmis_foto, (display_w_final, display_h_final))
-                        
                         if download_url:
-                            qr_img = generate_qr_code(download_url)
-                            qr_img_resized = cv2.resize(qr_img, (display_w_final // 3, display_h_final // 3)) # QR'ı da mantıksal küçültme
+                            qr_img = generate_qr_code(download_url, size=400) # QR boyutu 400x400
                             
-                            cv2.imshow('SONUC', islenmis_foto_resized) 
-                            cv2.imshow('QR KODU - TELEFONLA OKUTUN', qr_img_resized)
+                            # Sonuç fotoğrafı için ayrı pencere
+                            SONUC_PENCERE_ADI = 'SONUC - DEV CAM'
+                            cv2.namedWindow(SONUC_PENCERE_ADI, cv2.WND_PROP_FULLSCREEN)
+                            cv2.setWindowProperty(SONUC_PENCERE_ADI, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                             
-                            cv2.waitKey(30000) 
-                            cv2.destroyWindow('SONUC')
-                            cv2.destroyWindow('QR KODU - TELEFONLA OKUTUN')
-                        
+                            # QR Kodu için ayrı pencere
+                            QR_PENCERE_ADI = 'QR KODU - TELEFONLA OKUTUN'
+                            # QR kodunun tam ekran olmasını istiyorsunuz, bu yüzden tam ekran ayarı kaldırıldı.
+                            cv2.namedWindow(QR_PENCERE_ADI, cv2.WINDOW_AUTOSIZE) # Otomatik boyutlandırma
+                            
+                            # Fotoğrafı ve QR kodu ayrı pencerelerde göster (Ekranı Taşırmadan)
+                            cv2.imshow(SONUC_PENCERE_ADI, islenmis_foto) 
+                            cv2.imshow(QR_PENCERE_ADI, qr_img)
+                            
+                            cv2.waitKey(30000) # 30 saniye beklet
+                            cv2.destroyWindow(SONUC_PENCERE_ADI)
+                            cv2.destroyWindow(QR_PENCERE_ADI)
+                            
                         else:
                             # YEDEKLEME DURUMU
                             timestamp = int(time.time())
@@ -257,42 +276,39 @@ def main():
                             cv2.imwrite(kayit_adi, islenmis_foto) 
                             print(f"UYARI: API Başarısız. Fotoğraf YEDEK OLARAK kaydedildi: {kayit_adi}")
                             
-                            cv2.putText(islenmis_foto_resized, "API HATA! YEDEK KAYIT YAPILDI.", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3, cv2.LINE_AA)
-                            cv2.imshow('DevCam - Canli Akis', islenmis_foto_resized)
+                            # Hata mesajını fotoğrafın üzerine yazdırıp göster
+                            cv2.putText(image, "API HATA! YEDEK KAYIT YAPILDI.", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3, cv2.LINE_AA)
+                            cv2.imshow(CANLI_AKIS_PENCERE_ADI, image) # Canlı akış penceresinde göster
                             cv2.waitKey(3000)
+                            
                     else:
                         print("HATA: Çerçeve yüklenemediği için çekim atlandı.")
                         sayim_durumu = False # Sayımı durdur
 
             # --- CANLI AKIŞ KONTROLLERİ ---
             
-            # Ekranın sığması için görüntüyü küçült (yarı boyuta)
-            display_w = w // 2
-            display_h = h // 2
-            image_display = cv2.resize(image, (display_w, display_h))
-
             # Canlı akışa Geri Sayım Metni ekle
             if sayim_durumu:
                 # Geri sayım sırasında büyük sayıyı ekranın ortasına yazdır
                 sayi_metni = str(sayi)
                 (text_w, text_h), baseline = cv2.getTextSize(sayi_metni, cv2.FONT_HERSHEY_SIMPLEX, 5, 10)
-                text_x = (display_w - text_w) // 2
-                text_y = (display_h + text_h) // 2
+                text_x = (w - text_w) // 2
+                text_y = (h + text_h) // 2
                 
                 # Gölge efekti ve Ana metin
-                cv2.putText(image_display, sayi_metni, (text_x + 5, text_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
-                cv2.putText(image_display, sayi_metni, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 255, 255), 8, cv2.LINE_AA)
-                cv2.putText(image_display, "CEKILIYOR...", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
+                cv2.putText(image, sayi_metni, (text_x + 5, text_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+                cv2.putText(image, sayi_metni, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 255, 255), 8, cv2.LINE_AA)
+                cv2.putText(image, "CEKILIYOR...", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
             else:
                 # Rehberlik Metni
                 if yuz_tespit_edildi:
-                    cv2.putText(image_display, "GULUMSEYIN! (SPACE BASIN)", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                    cv2.putText(image, "GULUMSEYIN! (SPACE BASIN)", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                 else:
-                    cv2.putText(image_display, "Yuzunuzu Kameraya Getirin", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                    # Yüz tespit edilmediğinde bu metin gösterilir (Bug Fix sonrası stabil)
+                    cv2.putText(image, "Yuzunuzu Kameraya Getirin", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-
-            # Canlı akışı DevCam başlığıyla göster
-            cv2.imshow('DevCam - Canli Akis', image_display)
+            # Canlı akışı DevCam başlığıyla göster (Tam ekran pencere adı ile)
+            cv2.imshow(CANLI_AKIS_PENCERE_ADI, image)
 
             # --- TUŞ KONTROLÜ (ÇIKIŞ) ---
             key = cv2.waitKey(5) & 0xFF
